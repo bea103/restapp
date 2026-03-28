@@ -8,6 +8,7 @@ var TRANSLATIONS = {
   en: {
     title:        'Explore',
     tagline:      'Discover the best restaurants around the world and their must-try dishes',
+    metaDescription: 'My favourite restaurants around the world — search by city and discover must-try dishes',
     tabExplore:   'Explore',
     tabFavourites:'My Favourites',
     placeholder:  'Search by city... (e.g. Seville, Paris, Tokyo)',
@@ -17,8 +18,24 @@ var TRANSLATIONS = {
     emptyHint:    'Try another city.',
     emptyFav:     'No favourites yet',
     emptyFavHint: 'Tap ♥ on any restaurant to save it here.',
+    suggestionsKicker: 'Suggestions',
+    suggestionsTitle: 'Cities with the most reviews',
+    suggestionsSubtitle: 'Start with the destinations where I have saved the most restaurant reviews.',
+    suggestionBadge: 'Most reviewed',
+    suggestionTap: 'Tap to explore',
+    searchAria:   'Search restaurants by city',
+    favouriteAria:'Add to favourites',
+    emptyName:    'Unnamed',
+    viewOf:       'View of',
+    languageName: { en: 'English', es: 'Spanish' },
+    languageSwitchAria: function(langCode) {
+      return 'Switch to ' + this.languageName[langCode];
+    },
     footer:       'Made with ❤️ · Updated from Notion',
     mustTry:      'Must-try dishes',
+    reviewCountLabel: function(n) {
+      return n + ' review' + (n !== 1 ? 's' : '');
+    },
     resultCount:  function(n, q) {
       return n + ' restaurant' + (n !== 1 ? 's' : '') + ' found in "' + q + '"';
     }
@@ -26,6 +43,7 @@ var TRANSLATIONS = {
   es: {
     title:        'Explore',
     tagline:      'Descubre los mejores restaurantes del mundo y sus platos imprescindibles',
+    metaDescription: 'Mis restaurantes favoritos por el mundo — busca por ciudad y descubre platos imprescindibles',
     tabExplore:   'Explorar',
     tabFavourites:'Mis Favoritos',
     placeholder:  'Busca por ciudad... (ej: Sevilla, París, Tokyo)',
@@ -35,8 +53,24 @@ var TRANSLATIONS = {
     emptyHint:    'Prueba con otra ciudad.',
     emptyFav:     'Aún no tienes favoritos',
     emptyFavHint: 'Toca ♥ en cualquier restaurante para guardarlo aquí.',
+    suggestionsKicker: 'Sugerencias',
+    suggestionsTitle: 'Ciudades con más reseñas',
+    suggestionsSubtitle: 'Empieza por los destinos donde he guardado más reseñas de restaurantes.',
+    suggestionBadge: 'Más reseñada',
+    suggestionTap: 'Toca para explorar',
+    searchAria:   'Buscar restaurantes por ciudad',
+    favouriteAria:'Añadir a favoritos',
+    emptyName:    'Sin nombre',
+    viewOf:       'Vista de',
+    languageName: { en: 'Inglés', es: 'Español' },
+    languageSwitchAria: function(langCode) {
+      return 'Cambiar a ' + this.languageName[langCode];
+    },
     footer:       'Hecho con ❤️ · Actualizado desde Notion',
     mustTry:      'Platos imprescindibles',
+    reviewCountLabel: function(n) {
+      return n + ' reseña' + (n !== 1 ? 's' : '');
+    },
     resultCount:  function(n, q) {
       return 'Se encontraron ' + n + ' restaurante' + (n !== 1 ? 's' : '') + ' en "' + q + '"';
     }
@@ -72,6 +106,8 @@ function t(key) {
 
 function applyTranslations() {
   var lang = TRANSLATIONS[currentLang];
+  var metaDescription = document.querySelector('meta[name="description"]');
+  var searchButton = document.querySelector('.search-btn');
 
   // data-i18n elements
   document.querySelectorAll('[data-i18n]').forEach(function(el) {
@@ -85,19 +121,31 @@ function applyTranslations() {
 
   // Page title
   document.title = lang.title;
+  if (metaDescription) metaDescription.setAttribute('content', lang.metaDescription);
 
   // html lang attribute
   document.documentElement.lang = currentLang;
 
+  if (searchButton) searchButton.setAttribute('aria-label', lang.searchAria);
+
   // Active flag button
   document.querySelectorAll('.lang-btn').forEach(function(btn) {
+    var buttonLang = btn.dataset.lang;
+    var flag = btn.querySelector('.lang-flag');
     btn.classList.toggle('active', btn.dataset.lang === currentLang);
+    btn.title = lang.languageName[buttonLang];
+    btn.setAttribute('aria-label', lang.languageSwitchAria(buttonLang));
+    if (flag) flag.setAttribute('alt', lang.languageName[buttonLang]);
   });
+
+  renderSuggestions();
 
   // Re-render current results (if any search active)
   var query = input ? input.value.trim() : '';
   var results = query.length >= 2 ? searchRestaurants(query) : [];
   renderResults(results, query);
+
+  if (currentTab === 'favourites') renderFavourites();
 }
 
 /* =====================================================================
@@ -210,15 +258,17 @@ function loadRestaurants() {
     encoding: 'UTF-8',
     skipEmptyLines: true,
     complete: function(results) {
+      var k = '';
       window['allRestaurants'] = results.data.map(function(r) {
         var cleaned = {};
         for (var key in r) {
-          var k = key.trim();
+          k = key.trim();
           cleaned[k] = typeof r[key] === 'string' ? r[key].trim() : r[key];
         }
         cleaned.CityEN = CITY_MAP[cleaned.Ciudad] || cleaned.Ciudad;
         return cleaned;
       });
+      window['citySuggestions'] = buildCitySuggestions(window['allRestaurants']);
       // Apply initial translations now that data is ready
       applyTranslations();
     },
@@ -247,6 +297,208 @@ function searchRestaurants(query) {
   return allRestaurants.filter(function(r) {
     var city = normalizeText(getCityName(r));
     return city.includes(normalizedQuery);
+  });
+}
+
+var CITY_IMAGE_MAP = {
+  'Kraków': {
+    url: 'images/landmarks/krakow-wawel-castle.jpg',
+    monument: { en: 'Wawel Castle', es: 'Castillo de Wawel' }
+  },
+  'Seville': {
+    url: 'images/landmarks/seville-giralda.jpg',
+    monument: { en: 'Giralda Cathedral', es: 'Catedral de la Giralda' }
+  },
+  'Athens': {
+    url: 'images/landmarks/athens-parthenon.jpg',
+    monument: { en: 'Parthenon Acropolis', es: 'Partenón de la Acrópolis' }
+  },
+  'Madrid': {
+    url: 'images/landmarks/madrid-puerta-del-sol.jpg',
+    monument: { en: 'Puerta del Sol', es: 'Puerta del Sol' }
+  },
+  'Chania': {
+    url: 'images/landmarks/chania-venetian-lighthouse.jpg',
+    monument: { en: 'Venetian Lighthouse', es: 'Faro veneciano' }
+  },
+  'Riga': {
+    url: 'images/landmarks/riga-freedom-monument.jpg',
+    monument: { en: 'Freedom Monument', es: 'Monumento a la Libertad' }
+  },
+  'Warsaw': {
+    url: 'images/landmarks/warsaw-old-town.jpg',
+    monument: { en: 'Old Town Market Square', es: 'Plaza del Mercado del Casco Antiguo' }
+  },
+  'Palermo': {
+    url: 'images/landmarks/palermo-cathedral.jpg',
+    monument: { en: 'Palermo Cathedral', es: 'Catedral de Palermo' }
+  },
+  'Wrocław': {
+    url: 'images/landmarks/wroclaw-town-hall.jpg',
+    monument: { en: 'Town Hall Market Square', es: 'Ayuntamiento de la Plaza del Mercado' }
+  },
+  'Amsterdam': {
+    url: 'images/landmarks/amsterdam-canal.jpg',
+    monument: { en: 'Canal Houses', es: 'Casas de los canales' }
+  },
+  'Jaipur': {
+    url: 'images/landmarks/jaipur-hawa-mahal.jpg',
+    monument: { en: 'Hawa Mahal Palace', es: 'Palacio Hawa Mahal' }
+  },
+  'Göreme': {
+    url: 'images/landmarks/goreme-fairy-chimneys.jpg',
+    monument: { en: 'Fairy Chimneys', es: 'Chimeneas de hadas' }
+  }
+};
+
+function getCityMonumentName(cityImage) {
+  if (!cityImage || !cityImage.monument) return '';
+  if (typeof cityImage.monument === 'string') return cityImage.monument;
+  return cityImage.monument[currentLang] || cityImage.monument.en || '';
+}
+
+function parseRating(value) {
+  var rating = parseFloat(String(value || '').replace(',', '.'));
+  return isNaN(rating) ? null : rating;
+}
+
+function splitCityLabel(label) {
+  var cityLabel = label || '';
+  var match = cityLabel.match(/^(.*?)\s*\((.*?)\)$/);
+  if (!match) {
+    return { primary: cityLabel, secondary: '' };
+  }
+
+  return {
+    primary: match[1].trim(),
+    secondary: match[2].trim()
+  };
+}
+
+function buildCitySuggestions(restaurants) {
+  var grouped = {};
+
+  restaurants.forEach(function(restaurant) {
+    var cityEN = (restaurant.CityEN || restaurant.Ciudad || '').trim();
+    var cityES = (restaurant.Ciudad || restaurant.CityEN || '').trim();
+    var key = cityEN || cityES;
+
+    if (!key) return;
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        key: key,
+        cityEN: cityEN,
+        cityES: cityES,
+        count: 0,
+        ratingTotal: 0,
+        ratingCount: 0
+      };
+    }
+
+    grouped[key].count += 1;
+
+    var rating = parseRating(restaurant['Valoración']);
+    if (rating !== null) {
+      grouped[key].ratingTotal += rating;
+      grouped[key].ratingCount += 1;
+    }
+  });
+
+  return Object.keys(grouped)
+    .map(function(key) {
+      var item = grouped[key];
+      item.avgRating = item.ratingCount ? (item.ratingTotal / item.ratingCount) : null;
+      return item;
+    })
+    .sort(function(a, b) {
+      if (b.count !== a.count) return b.count - a.count;
+      return (b.avgRating || 0) - (a.avgRating || 0);
+    })
+    .slice(0, 6);
+}
+
+function getSuggestionCityName(cityInfo) {
+  return currentLang === 'es' ? cityInfo.cityES : cityInfo.cityEN;
+}
+
+function getCityImage(cityInfo) {
+  var cityName = splitCityLabel(cityInfo.cityEN || cityInfo.cityES).primary;
+  return CITY_IMAGE_MAP[cityName] || null;
+}
+
+function getCityImageUrl(cityInfo) {
+  var cityImage = getCityImage(cityInfo);
+  return cityImage ? cityImage.url : getCityFallbackImageUrl(cityInfo);
+}
+
+function getCityFallbackImageUrl(cityInfo) {
+  var cityName = splitCityLabel(cityInfo.cityEN || cityInfo.cityES).primary;
+  var cityImage = CITY_IMAGE_MAP[cityName];
+  return cityImage ? cityImage.url : 'images/space-exploration.png';
+}
+
+function renderSuggestions() {
+  var grid = document.getElementById('suggestions-grid');
+  if (!grid) return;
+
+  var suggestions = window['citySuggestions'] || [];
+  if (!suggestions.length) {
+    grid.innerHTML = '';
+    return;
+  }
+
+  grid.innerHTML = suggestions.map(function(cityInfo) {
+    var cityImage = getCityImage(cityInfo);
+    var monumentName = getCityMonumentName(cityImage);
+    var label = splitCityLabel(getSuggestionCityName(cityInfo));
+    var query = escapeHtml(getSuggestionCityName(cityInfo));
+    var reviews = escapeHtml(t('reviewCountLabel')(cityInfo.count));
+    var rating = cityInfo.avgRating ? cityInfo.avgRating.toFixed(1) : '—';
+    var cityPhotoAlt = t('viewOf') + ' ' + label.primary + (monumentName ? ', ' + monumentName : '');
+
+    return (
+      '<button class="suggestion-card" type="button" data-city-query="' + query + '">' +
+        '<span class="suggestion-media">' +
+          '<img class="suggestion-image" src="' + escapeHtml(getCityImageUrl(cityInfo)) + '" data-fallback-src="' + escapeHtml(getCityFallbackImageUrl(cityInfo)) + '" alt="' + escapeHtml(cityPhotoAlt) + '">' +
+        '</span>' +
+        '<span class="suggestion-scrim"></span>' +
+        '<span class="suggestion-badge">' + escapeHtml(t('suggestionBadge')) + '</span>' +
+        '<span class="suggestion-rating">★ ' + escapeHtml(rating) + '</span>' +
+        '<span class="suggestion-content">' +
+          '<span class="suggestion-city">' + escapeHtml(label.primary) + '</span>' +
+          (label.secondary ? '<span class="suggestion-region">' + escapeHtml(label.secondary) + '</span>' : '') +
+          '<span class="suggestion-footer">' +
+            '<span class="suggestion-reviews">' + reviews + '</span>' +
+            '<span class="suggestion-cta">' + escapeHtml(t('suggestionTap')) + '</span>' +
+          '</span>' +
+        '</span>' +
+      '</button>'
+    );
+  }).join('');
+
+  bindSuggestionImages();
+}
+
+function bindSuggestionImages() {
+  document.querySelectorAll('.suggestion-image').forEach(function(img) {
+    if (img.dataset.bound === '1') return;
+
+    img.dataset.bound = '1';
+
+    img.addEventListener('error', function() {
+      var fallback = img.dataset.fallbackSrc;
+
+      if (fallback && img.dataset.fallbackApplied !== '1') {
+        img.dataset.fallbackApplied = '1';
+        img.src = fallback;
+        return;
+      }
+
+      var card = img.closest('.suggestion-card');
+      if (card) card.classList.add('suggestion-card--fallback');
+      img.remove();
+    });
   });
 }
 
@@ -287,7 +539,7 @@ function renderDishes(restaurant) {
 }
 
 function renderCard(restaurant) {
-  var nombre    = escapeHtml(restaurant.Nombre) || (currentLang === 'es' ? 'Sin nombre' : 'Unnamed');
+  var nombre    = escapeHtml(restaurant.Nombre) || t('emptyName');
   var avatar    = (restaurant.Nombre || 'R').charAt(0).toUpperCase();
   var ciudad    = escapeHtml(getCityName(restaurant));
   var tipo      = renderBadges(restaurant.Tipo);
@@ -309,7 +561,7 @@ function renderCard(restaurant) {
       '<div class="card-avatar" aria-hidden="true">' + avatar + '</div>' +
       '<div class="card-body">' +
         '<header class="card-header">' +
-          '<button class="fav-btn' + (isFav(restaurant.Nombre) ? ' is-fav' : '') + '" data-nombre="' + escapeHtml(restaurant.Nombre) + '" aria-label="Favourite">&#9829;</button>' +
+          '<button class="fav-btn' + (isFav(restaurant.Nombre) ? ' is-fav' : '') + '" data-nombre="' + escapeHtml(restaurant.Nombre) + '" aria-label="' + escapeHtml(t('favouriteAria')) + '">&#9829;</button>' +
           '<h2 class="card-name">' + nombre + '</h2>' +
           (ciudad ? '<p class="card-city">' + ciudad + '</p>' : '') +
         '</header>' +
@@ -360,6 +612,7 @@ function renderResults(restaurants, query) {
 
 function switchTab(tab) {
   currentTab = tab;
+  var input = document.getElementById('search-input');
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
     var active = btn.dataset.tab === tab;
     btn.classList.toggle('active', active);
@@ -380,7 +633,6 @@ function switchTab(tab) {
     if (countEl) countEl.setAttribute('hidden', '');
     if (cardsEl) cardsEl.innerHTML = '';
     if (favsPanel) favsPanel.style.display = 'none';
-    var input = document.getElementById('search-input');
     if (input) {
       input.value = '';
       renderResults([], '');
@@ -435,6 +687,27 @@ function handleFavClick(e) {
   if (currentTab === 'favourites') renderFavourites();
 }
 
+function handleSuggestionClick(e) {
+  var card = e.target.closest ? e.target.closest('.suggestion-card') : null;
+  var input = document.getElementById('search-input');
+  var query = '';
+  if (!card) return;
+
+  query = card.dataset.cityQuery || '';
+  if (input) {
+    input.value = query;
+    input.focus();
+  }
+
+  renderResults(searchRestaurants(query), query);
+}
+
+function handleSearchButtonClick() {
+  var input = document.getElementById('search-input');
+  var query = input ? input.value.trim() : '';
+  renderResults(query.length >= 2 ? searchRestaurants(query) : [], query);
+}
+
 /* =====================================================================
    INIT
    ===================================================================== */
@@ -456,6 +729,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  var searchButton = document.querySelector('.search-btn');
+  if (searchButton) {
+    searchButton.addEventListener('click', handleSearchButtonClick);
+  }
+
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       switchTab(this.dataset.tab);
@@ -463,6 +741,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   document.addEventListener('click', handleFavClick);
+  document.addEventListener('click', handleSuggestionClick);
 
   // Language buttons
   document.querySelectorAll('.lang-btn').forEach(function(btn) {
