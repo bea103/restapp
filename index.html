@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Mis restaurantes favoritos del mundo — busca por ciudad y descubre los platos imprescindibles">
+  <meta name="description" content="My favourite restaurants around the world — search by city and discover must-try dishes">
   <link rel="icon" href="data:,">
-  <title>Mis Restaurantes</title>
+  <title>My Restaurants</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,16 +14,21 @@
 <body>
 
   <header class="site-header">
+    <!-- Language switcher — top right -->
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="en" title="English" aria-label="Switch to English">🇬🇧</button>
+      <button class="lang-btn" data-lang="es" title="Español" aria-label="Cambiar a español">🇪🇸</button>
+    </div>
+
     <div class="header-inner">
-      <h1 class="site-title">🍽️ Mis Restaurantes</h1>
-      <p class="site-tagline">Descubre los mejores restaurantes del mundo y sus platos imprescindibles</p>
+      <h1 class="site-title">🍽️ <span data-i18n="title"></span></h1>
+      <p class="site-tagline" data-i18n="tagline"></p>
       <div class="search-container">
         <span class="search-icon">🔍</span>
         <input
           type="search"
           id="search-input"
           class="search-input"
-          placeholder="Busca por ciudad... (ej: Sevilla, Paris, Tokyo)"
           autocomplete="off"
           spellcheck="false"
         >
@@ -36,20 +41,20 @@
 
     <div id="hero-state" class="hero-state">
       <span class="hero-emoji">🗺️</span>
-      <p class="hero-text">Busca una ciudad para empezar a descubrir</p>
+      <p class="hero-text" data-i18n="heroText"></p>
     </div>
 
     <div id="empty-state" class="empty-state" hidden>
       <span class="empty-emoji">🔍</span>
-      <p class="empty-text">No se encontraron restaurantes en "<span id="empty-query"></span>".</p>
-      <p class="empty-hint">Prueba con otra ciudad.</p>
+      <p class="empty-text"><span data-i18n="emptyBefore"></span>"<span id="empty-query"></span>"<span data-i18n="emptyAfter"></span></p>
+      <p class="empty-hint" data-i18n="emptyHint"></p>
     </div>
 
     <div id="cards-container" class="cards-grid"></div>
   </main>
 
   <footer class="site-footer">
-    <p>Hecho con ❤️ · Actualizado desde Notion</p>
+    <p data-i18n="footer"></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
