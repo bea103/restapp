@@ -6,13 +6,17 @@
 
 var TRANSLATIONS = {
   en: {
-    title:        'My Restaurants',
+    title:        'Explore',
     tagline:      'Discover the best restaurants around the world and their must-try dishes',
+    tabExplore:   'Explore',
+    tabFavourites:'My Favourites',
     placeholder:  'Search by city... (e.g. Seville, Paris, Tokyo)',
     heroText:     'Search a city to start exploring',
     emptyBefore:  'No restaurants found in ',
     emptyAfter:   '.',
     emptyHint:    'Try another city.',
+    emptyFav:     'No favourites yet',
+    emptyFavHint: 'Tap ♥ on any restaurant to save it here.',
     footer:       'Made with ❤️ · Updated from Notion',
     mustTry:      'Must-try dishes',
     resultCount:  function(n, q) {
@@ -20,13 +24,17 @@ var TRANSLATIONS = {
     }
   },
   es: {
-    title:        'Mis Restaurantes',
+    title:        'Explore',
     tagline:      'Descubre los mejores restaurantes del mundo y sus platos imprescindibles',
+    tabExplore:   'Explorar',
+    tabFavourites:'Mis Favoritos',
     placeholder:  'Busca por ciudad... (ej: Sevilla, París, Tokyo)',
     heroText:     'Busca una ciudad para empezar a descubrir',
     emptyBefore:  'No se encontraron restaurantes en ',
     emptyAfter:   '.',
     emptyHint:    'Prueba con otra ciudad.',
+    emptyFav:     'Aún no tienes favoritos',
+    emptyFavHint: 'Toca ♥ en cualquier restaurante para guardarlo aquí.',
     footer:       'Hecho con ❤️ · Actualizado desde Notion',
     mustTry:      'Platos imprescindibles',
     resultCount:  function(n, q) {
@@ -36,6 +44,23 @@ var TRANSLATIONS = {
 };
 
 var currentLang = 'en';
+var currentTab = 'explore';
+var FAVS_KEY = 'restaurant-favs';
+
+function getFavs() {
+  try { return JSON.parse(localStorage.getItem(FAVS_KEY) || '{}'); } catch(e) { return {}; }
+}
+
+function setFav(nombre, on) {
+  var favs = getFavs();
+  if (on) favs[nombre] = true;
+  else delete favs[nombre];
+  localStorage.setItem(FAVS_KEY, JSON.stringify(favs));
+}
+
+function isFav(nombre) {
+  return !!getFavs()[nombre];
+}
 
 function t(key) {
   return TRANSLATIONS[currentLang][key];
@@ -185,7 +210,7 @@ function loadRestaurants() {
     encoding: 'UTF-8',
     skipEmptyLines: true,
     complete: function(results) {
-      window.allRestaurants = results.data.map(function(r) {
+      window['allRestaurants'] = results.data.map(function(r) {
         var cleaned = {};
         for (var key in r) {
           var k = key.trim();
@@ -218,7 +243,8 @@ function normalizeText(text) {
 function searchRestaurants(query) {
   var normalizedQuery = normalizeText(query);
   if (!normalizedQuery || normalizedQuery.length < 2) return [];
-  return (window.allRestaurants || []).filter(function(r) {
+  var allRestaurants = window['allRestaurants'] || [];
+  return allRestaurants.filter(function(r) {
     var city = normalizeText(getCityName(r));
     return city.includes(normalizedQuery);
   });
@@ -283,6 +309,7 @@ function renderCard(restaurant) {
       '<div class="card-avatar" aria-hidden="true">' + avatar + '</div>' +
       '<div class="card-body">' +
         '<header class="card-header">' +
+          '<button class="fav-btn' + (isFav(restaurant.Nombre) ? ' is-fav' : '') + '" data-nombre="' + escapeHtml(restaurant.Nombre) + '" aria-label="Favourite">&#9829;</button>' +
           '<h2 class="card-name">' + nombre + '</h2>' +
           (ciudad ? '<p class="card-city">' + ciudad + '</p>' : '') +
         '</header>' +
@@ -331,6 +358,83 @@ function renderResults(restaurants, query) {
   container.innerHTML = restaurants.map(renderCard).join('');
 }
 
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    var active = btn.dataset.tab === tab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  var searchPanel = document.getElementById('panel-explore-search');
+  var heroEl = document.getElementById('hero-state');
+  var emptyEl = document.getElementById('empty-state');
+  var countEl = document.getElementById('result-count');
+  var cardsEl = document.getElementById('cards-container');
+  var favsPanel = document.getElementById('panel-favourites');
+
+  if (tab === 'explore') {
+    if (searchPanel) searchPanel.style.display = '';
+    if (heroEl) heroEl.removeAttribute('hidden');
+    if (emptyEl) emptyEl.setAttribute('hidden', '');
+    if (countEl) countEl.setAttribute('hidden', '');
+    if (cardsEl) cardsEl.innerHTML = '';
+    if (favsPanel) favsPanel.style.display = 'none';
+    var input = document.getElementById('search-input');
+    if (input) {
+      input.value = '';
+      renderResults([], '');
+    }
+  } else {
+    if (searchPanel) searchPanel.style.display = 'none';
+    if (heroEl) heroEl.setAttribute('hidden', '');
+    if (emptyEl) emptyEl.setAttribute('hidden', '');
+    if (countEl) countEl.setAttribute('hidden', '');
+    if (cardsEl) cardsEl.innerHTML = '';
+    if (favsPanel) {
+      favsPanel.style.display = '';
+      renderFavourites();
+    }
+  }
+}
+
+function renderFavourites() {
+  var panel = document.getElementById('panel-favourites');
+  if (!panel) return;
+
+  var favs = getFavs();
+  var allRestaurants = window['allRestaurants'] || [];
+  var favList = allRestaurants.filter(function(r) {
+    return favs[r.Nombre];
+  });
+
+  if (favList.length === 0) {
+    panel.innerHTML = (
+      '<div class="fav-empty-state">' +
+        '<span class="fav-empty-emoji">&#9829;</span>' +
+        '<p class="empty-text">' + escapeHtml(t('emptyFav')) + '</p>' +
+        '<p class="empty-hint">' + escapeHtml(t('emptyFavHint')) + '</p>' +
+      '</div>'
+    );
+    return;
+  }
+
+  panel.innerHTML = '<div class="cards-grid" id="fav-cards-container">' + favList.map(renderCard).join('') + '</div>';
+}
+
+function handleFavClick(e) {
+  var btn = e.target.closest ? e.target.closest('.fav-btn') : null;
+  if (!btn) return;
+  e.stopPropagation();
+
+  var nombre = btn.dataset.nombre;
+  var nowFav = !isFav(nombre);
+  setFav(nombre, nowFav);
+  btn.classList.toggle('is-fav', nowFav);
+
+  if (currentTab === 'favourites') renderFavourites();
+}
+
 /* =====================================================================
    INIT
    ===================================================================== */
@@ -346,10 +450,19 @@ document.addEventListener('DOMContentLoaded', function() {
   var input = document.getElementById('search-input');
   if (input) {
     input.addEventListener('input', function() {
+      if (currentTab !== 'explore') return;
       var query = this.value.trim();
       renderResults(query.length >= 2 ? searchRestaurants(query) : [], query);
     });
   }
+
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      switchTab(this.dataset.tab);
+    });
+  });
+
+  document.addEventListener('click', handleFavClick);
 
   // Language buttons
   document.querySelectorAll('.lang-btn').forEach(function(btn) {

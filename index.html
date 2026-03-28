@@ -8,12 +8,17 @@
   <title>My Restaurants</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <header class="site-header">
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" data-tab="explore" role="tab" aria-selected="true"><img src="images/space-exploration.png" class="tab-icon" alt=""> <span data-i18n="tabExplore"></span></button>
+      <button class="tab-btn" data-tab="favourites" role="tab" aria-selected="false"><img src="images/favorite.png" class="tab-icon" alt=""> <span data-i18n="tabFavourites"></span></button>
+    </nav>
+
     <!-- Language switcher — top right -->
     <div class="lang-switcher">
       <button class="lang-btn active" data-lang="en" title="English" aria-label="Switch to English">🇬🇧</button>
@@ -21,22 +26,25 @@
     </div>
 
     <div class="header-inner">
-      <h1 class="site-title">🍽️ <span data-i18n="title"></span></h1>
+      <h1 class="site-title"><span data-i18n="title"></span></h1>
       <p class="site-tagline" data-i18n="tagline"></p>
-      <div class="search-container">
-        <span class="search-icon">🔍</span>
-        <input
-          type="search"
-          id="search-input"
-          class="search-input"
-          autocomplete="off"
-          spellcheck="false"
-        >
+      <div id="panel-explore-search">
+        <div class="search-container">
+          <input
+            type="search"
+            id="search-input"
+            class="search-input"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button class="search-btn" aria-label="Search"><img src="images/magnifying-glass.png" class="search-btn-icon" alt=""></button>
+        </div>
       </div>
     </div>
   </header>
 
   <main class="main-content">
+    <div id="panel-favourites" style="display:none"></div>
     <div id="result-count" class="result-count" hidden></div>
 
     <div id="hero-state" class="hero-state">
