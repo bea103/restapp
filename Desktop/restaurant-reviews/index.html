@@ -10,15 +10,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 </head>
 <body>
 
   <header class="site-header">
-    <nav class="tab-nav" role="tablist">
-      <button type="button" class="tab-btn active" data-tab="explore" role="tab" aria-selected="true"><img src="images/space-exploration.png" class="tab-icon" alt=""> <span data-i18n="tabExplore"></span></button>
-      <button type="button" class="tab-btn" data-tab="favourites" role="tab" aria-selected="false"><img src="images/favorite.png" class="tab-icon" alt=""> <span data-i18n="tabFavourites"></span></button>
-    </nav>
-
     <!-- Language switcher — top right -->
     <div class="lang-switcher">
       <button type="button" class="lang-btn active" data-lang="en">
@@ -42,9 +38,15 @@
             spellcheck="false"
           >
           <button type="button" class="search-btn"><img src="images/magnifying-glass.png" class="search-btn-icon" alt=""></button>
+          <div id="autocomplete-dropdown" class="autocomplete-dropdown" hidden></div>
         </div>
       </div>
     </div>
+
+    <nav class="tab-nav" role="tablist">
+      <button type="button" class="tab-btn active" data-tab="explore" role="tab" aria-selected="true"><img src="images/space-exploration.png" class="tab-icon" alt=""> <span data-i18n="tabExplore"></span></button>
+      <button type="button" class="tab-btn" data-tab="favourites" role="tab" aria-selected="false"><img src="images/favorite.png" class="tab-icon" alt=""> <span data-i18n="tabFavourites"></span></button>
+    </nav>
   </header>
 
   <main class="main-content">
@@ -63,13 +65,26 @@
       </div>
     </section>
 
+    <div id="scroll-loader" class="scroll-loader" hidden>
+      <span class="scroll-loader-dot"></span>
+      <span class="scroll-loader-dot"></span>
+      <span class="scroll-loader-dot"></span>
+    </div>
+
     <div id="empty-state" class="empty-state" hidden>
       <span class="empty-emoji">🔍</span>
       <p class="empty-text"><span data-i18n="emptyBefore"></span>"<span id="empty-query"></span>"<span data-i18n="emptyAfter"></span></p>
       <p class="empty-hint" data-i18n="emptyHint"></p>
     </div>
 
-    <div id="cards-container" class="cards-grid"></div>
+    <div id="did-you-mean-state" class="did-you-mean-state" hidden></div>
+
+    <div id="cards-container" class="cards-grid" hidden></div>
+
+    <div id="split-layout" class="split-layout" hidden>
+      <div id="split-cards" class="split-cards"></div>
+      <div id="split-map" class="split-map"></div>
+    </div>
   </main>
 
   <footer class="site-footer">
@@ -77,6 +92,14 @@
   </footer>
 
   <script src="vendor/papaparse.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <div id="restaurant-detail-overlay" class="detail-overlay" hidden>
+    <div class="detail-overlay-backdrop"></div>
+    <div class="detail-overlay-panel">
+      <button type="button" class="detail-close-btn" aria-label="Close">&times;</button>
+      <div id="detail-content" class="detail-content"></div>
+    </div>
+  </div>
   <script src="script.js"></script>
 </body>
 </html>
